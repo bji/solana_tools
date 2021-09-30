@@ -56,7 +56,7 @@ solana leader-schedule --no-address-labels | grep $VALIDATOR_IDENTITY | awk '{ p
                 printf "Lead    $FIRST_LEADER_SLOT-$SLOT  %-12s $(duration $SECS)\n" "$SLOTS slots"
                 FIRST_LEADER_SLOT=
             fi
-            SLOTS=$(($NEXT_SLOT-$SLOT+1))
+            SLOTS=$(($NEXT_SLOT-$SLOT-1))
             SECS=$(echo "$SECONDS_PER_SLOT $SLOTS * p" | dc)
             printf "        $(($SLOT+1))-$(($NEXT_SLOT-1))  %-12s $(duration $SECS)\n" "$SLOTS slots"
             SLOT=$NEXT_SLOT
