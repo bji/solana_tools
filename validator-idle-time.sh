@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Prints the leader and idle times in slots (and estimated time duration) of a validator
 # Usage: validator-idle-time <VALIDATOR_IDENTITY> [<SECONDS_PER_SLOT>]
