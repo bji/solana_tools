@@ -39,28 +39,66 @@ EPOCH_DETAILS=$(solana epoch-info)
 
 EPOCH_CURRENT_SLOT=$(echo "$EPOCH_DETAILS" | grep ^Slot: | awk '{ print $2 }')
 EPOCH_COMPLETED_SLOTS=$(echo "$EPOCH_DETAILS" | grep "^Epoch Completed Slots:" | awk '{ print $4 }' | cut -d '/' -f 1)
+EPOCH_SLOT_COUNT=$(echo "$EPOCH_DETAILS" | grep "^Epoch Completed Slots:" | awk '{ print $4 }' | cut -d '/' -f 2)
 
-SLOT=$(($EPOCH_CURRENT_SLOT-$EPOCH_COMPLETED_SLOTS-1))
+EPOCH_FIRST_SLOT=$(($EPOCH_CURRENT_SLOT-$EPOCH_COMPLETED_SLOTS))
+EPOCH_LAST_SLOT=$(($EPOCH_FIRST_SLOT+$EPOCH_SLOT_COUNT-1))
 
 FIRST_LEADER_SLOT=
+PREVIOUS_LEADER_SLOT=
 
-solana leader-schedule --no-address-labels | grep $VALIDATOR_IDENTITY | awk '{ print $1 }' |
-    while read NEXT_SLOT; do
-        if [ $NEXT_SLOT -eq $((SLOT+1)) ]; then
-            if [ -z "$FIRST_LEADER_SLOT" ]; then
-                FIRST_LEADER_SLOT=$SLOT
-            fi
-            SLOT=$NEXT_SLOT
-        else
-            if [ -n "$FIRST_LEADER_SLOT" ]; then
-                SLOTS=$(($SLOT-$FIRST_LEADER_SLOT+1))
-                SECS=$(echo "$SECONDS_PER_SLOT $SLOTS * p" | dc)
-                printf "Lead    $FIRST_LEADER_SLOT-$SLOT  %-12s $(duration $SECS)\n" "$SLOTS slots"
-                FIRST_LEADER_SLOT=
-            fi
-            SLOTS=$(($NEXT_SLOT-$SLOT-1))
-            SECS=$(echo "$SECONDS_PER_SLOT $SLOTS * p" | dc)
-            printf "        $(($SLOT+1))-$(($NEXT_SLOT-1))  %-12s $(duration $SECS)\n" "$SLOTS slots"
-            SLOT=$NEXT_SLOT
-        fi
-    done
+function show_leader_range ()
+{
+    if [ -n "$PREVIOUS_LEADER_SLOT" ]; then
+	SLOTS=$(($PREVIOUS_LEADER_SLOT-$FIRST_LEADER_SLOT+1))
+	SECS=$(echo "$SECONDS_PER_SLOT $SLOTS * p" | dc)
+	printf "Lead    $FIRST_LEADER_SLOT-$PREVIOUS_LEADER_SLOT  %-12s $(duration $SECS)\n" "$SLOTS slots"
+    fi
+}    
+
+function show_non_leader_range ()
+{
+    if [ -z "$PREVIOUS_LEADER_SLOT" ]; then
+	# No previous leader slot, so we're looking at the very first range of
+	# non-leader slots of the epoch
+	FIRST_NON_LEADER_SLOT=$EPOCH_FIRST_SLOT
+    else
+	# There was a previous leader slot group, so the non-leader slots
+	# immediately follow it
+	FIRST_NON_LEADER_SLOT=$(($PREVIOUS_LEADER_SLOT+1))
+    fi
+    SLOTS=$(($NEXT_LEADER_SLOT-$FIRST_NON_LEADER_SLOT))
+    if [ $SLOTS -gt 0 ]; then
+	SECS=$(echo "$SECONDS_PER_SLOT $SLOTS * p" | dc)
+	printf "        $FIRST_NON_LEADER_SLOT-$(($NEXT_LEADER_SLOT-1))  %-12s $(duration $SECS)\n" "$SLOTS slots"
+    fi
+}
+
+for NEXT_LEADER_SLOT in $(solana leader-schedule --no-address-labels | grep $VALIDATOR_IDENTITY | awk '{ print $1 }'); do
+    # If there was a previous leader slot and the current leader slot is right after it,
+    # then continue building the current leader slot range
+    if [ -n "$PREVIOUS_LEADER_SLOT" -a \
+	    $NEXT_LEADER_SLOT -eq $(($PREVIOUS_LEADER_SLOT+1)) ]; then
+	PREVIOUS_LEADER_SLOT=$NEXT_LEADER_SLOT
+	# Else this is a new leader slot range
+    else
+	# Maybe there was a previous leader slot range; if so, show it
+	show_leader_range
+	
+	# Maybe there was a previous non-leader slot range; if so, show it
+	show_non_leader_range
+	
+	# Beginning new leader slot range
+	FIRST_LEADER_SLOT=$NEXT_LEADER_SLOT
+	PREVIOUS_LEADER_SLOT=$NEXT_LEADER_SLOT
+    fi
+done
+
+# Show the last leader range.
+show_leader_range
+
+# Show the last non-leader range.  Pretend that there is a leader slot immediately
+# following the end of epoch
+NEXT_LEADER_SLOT=$(($EPOCH_LAST_SLOT+1))
+
+show_non_leader_range
