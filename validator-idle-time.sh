@@ -50,27 +50,27 @@ PREVIOUS_LEADER_SLOT=
 function show_leader_range ()
 {
     if [ -n "$PREVIOUS_LEADER_SLOT" ]; then
-	SLOTS=$(($PREVIOUS_LEADER_SLOT-$FIRST_LEADER_SLOT+1))
-	SECS=$(echo "$SECONDS_PER_SLOT $SLOTS * p" | dc)
-	printf "Lead    $FIRST_LEADER_SLOT-$PREVIOUS_LEADER_SLOT  %-12s $(duration $SECS)\n" "$SLOTS slots"
+        SLOTS=$(($PREVIOUS_LEADER_SLOT-$FIRST_LEADER_SLOT+1))
+        SECS=$(echo "$SECONDS_PER_SLOT $SLOTS * p" | dc)
+        printf "Lead    $FIRST_LEADER_SLOT-$PREVIOUS_LEADER_SLOT  %-12s $(duration $SECS)\n" "$SLOTS slots"
     fi
 }    
 
 function show_non_leader_range ()
 {
     if [ -z "$PREVIOUS_LEADER_SLOT" ]; then
-	# No previous leader slot, so we're looking at the very first range of
-	# non-leader slots of the epoch
-	FIRST_NON_LEADER_SLOT=$EPOCH_FIRST_SLOT
+        # No previous leader slot, so we're looking at the very first range of
+        # non-leader slots of the epoch
+        FIRST_NON_LEADER_SLOT=$EPOCH_FIRST_SLOT
     else
-	# There was a previous leader slot group, so the non-leader slots
-	# immediately follow it
-	FIRST_NON_LEADER_SLOT=$(($PREVIOUS_LEADER_SLOT+1))
+        # There was a previous leader slot group, so the non-leader slots
+        # immediately follow it
+        FIRST_NON_LEADER_SLOT=$(($PREVIOUS_LEADER_SLOT+1))
     fi
     SLOTS=$(($NEXT_LEADER_SLOT-$FIRST_NON_LEADER_SLOT))
     if [ $SLOTS -gt 0 ]; then
-	SECS=$(echo "$SECONDS_PER_SLOT $SLOTS * p" | dc)
-	printf "        $FIRST_NON_LEADER_SLOT-$(($NEXT_LEADER_SLOT-1))  %-12s $(duration $SECS)\n" "$SLOTS slots"
+        SECS=$(echo "$SECONDS_PER_SLOT $SLOTS * p" | dc)
+        printf "        $FIRST_NON_LEADER_SLOT-$(($NEXT_LEADER_SLOT-1))  %-12s $(duration $SECS)\n" "$SLOTS slots"
     fi
 }
 
@@ -78,19 +78,19 @@ for NEXT_LEADER_SLOT in $(solana leader-schedule --no-address-labels | grep $VAL
     # If there was a previous leader slot and the current leader slot is right after it,
     # then continue building the current leader slot range
     if [ -n "$PREVIOUS_LEADER_SLOT" -a \
-	    $NEXT_LEADER_SLOT -eq $(($PREVIOUS_LEADER_SLOT+1)) ]; then
-	PREVIOUS_LEADER_SLOT=$NEXT_LEADER_SLOT
-	# Else this is a new leader slot range
+            $NEXT_LEADER_SLOT -eq $(($PREVIOUS_LEADER_SLOT+1)) ]; then
+        PREVIOUS_LEADER_SLOT=$NEXT_LEADER_SLOT
+    # Else this is a new leader slot range
     else
-	# Maybe there was a previous leader slot range; if so, show it
-	show_leader_range
-	
-	# Maybe there was a previous non-leader slot range; if so, show it
-	show_non_leader_range
-	
-	# Beginning new leader slot range
-	FIRST_LEADER_SLOT=$NEXT_LEADER_SLOT
-	PREVIOUS_LEADER_SLOT=$NEXT_LEADER_SLOT
+        # Maybe there was a previous leader slot range; if so, show it
+        show_leader_range
+        
+        # Maybe there was a previous non-leader slot range; if so, show it
+        show_non_leader_range
+        
+        # Beginning new leader slot range
+        FIRST_LEADER_SLOT=$NEXT_LEADER_SLOT
+        PREVIOUS_LEADER_SLOT=$NEXT_LEADER_SLOT
     fi
 done
 
