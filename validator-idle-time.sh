@@ -36,11 +36,11 @@ function duration ()
     local S=$((T%60))
     
     (($D > 0)) && printf '%d day%s ' $D $((($D > 1)) && echo s)
-    (($H > 0)) && printf '%d hour%s ' $H $((($H > 1)) && echo s)
-    (($M > 0)) && printf '%d minute%s ' $M $((($M > 1)) && echo s)
+    (($H > 0)) && printf '%d hr%s ' $H $((($H > 1)) && echo s)
+    (($M > 0)) && printf '%d min%s ' $M $((($M > 1)) && echo s)
 
     S=$(echo "$S $F + p" | dc)
-    printf '%0.2f seconds' $S
+    printf '%0.2f secs' $S
 }
 
 EPOCH_DETAILS=$(solana $CLUSTER epoch-info)
@@ -55,12 +55,26 @@ EPOCH_LAST_SLOT=$(($EPOCH_FIRST_SLOT+$EPOCH_SLOT_COUNT-1))
 FIRST_LEADER_SLOT=
 PREVIOUS_LEADER_SLOT=
 
+function min_from_now ()
+{
+    local SLOT=$1
+
+    local min=$(echo "$SLOT $EPOCH_CURRENT_SLOT - $SECONDS_PER_SLOT * 60 / p" | dc)
+
+    if [ $min -gt 0 ]; then
+        echo "+$min"
+    else
+        echo "$min"
+    fi
+}
+
 function show_leader_range ()
 {
     if [ -n "$PREVIOUS_LEADER_SLOT" ]; then
         SLOTS=$(($PREVIOUS_LEADER_SLOT-$FIRST_LEADER_SLOT+1))
         SECS=$(echo "$SECONDS_PER_SLOT $SLOTS * p" | dc)
-        printf "Lead    $FIRST_LEADER_SLOT-$PREVIOUS_LEADER_SLOT  %-12s $(duration $SECS)\n" "$SLOTS slots"
+        MIN_FROM_NOW=$(min_from_now $FIRST_LEADER_SLOT)
+        printf "Lead  $FIRST_LEADER_SLOT-$PREVIOUS_LEADER_SLOT  %-12s  $(duration $SECS) (${MIN_FROM_NOW}m)\n" "$SLOTS slots"
     fi
 }    
 
@@ -78,7 +92,8 @@ function show_non_leader_range ()
     SLOTS=$(($NEXT_LEADER_SLOT-$FIRST_NON_LEADER_SLOT))
     if [ $SLOTS -gt 0 ]; then
         SECS=$(echo "$SECONDS_PER_SLOT $SLOTS * p" | dc)
-        printf "        $FIRST_NON_LEADER_SLOT-$(($NEXT_LEADER_SLOT-1))  %-12s $(duration $SECS)\n" "$SLOTS slots"
+        MIN_FROM_NOW=$(min_from_now $FIRST_NON_LEADER_SLOT)
+        printf "      $FIRST_NON_LEADER_SLOT-$(($NEXT_LEADER_SLOT-1))  %-12s  $(duration $SECS) (${MIN_FROM_NOW}m)\n" "$SLOTS slots"
     fi
 }
 
