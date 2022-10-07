@@ -35,10 +35,12 @@ function duration ()
     printf '%0.2f seconds' $S
 }
 
+EPOCH_DETAILS=$(solana epoch-info)
 
-EPOCH=$(solana epoch-info | grep ^Epoch: | awk '{ print $2 }')
+EPOCH_CURRENT_SLOT=$(echo "$EPOCH_DETAILS" | grep ^Slot: | awk '{ print $2 }')
+EPOCH_COMPLETED_SLOTS=$(echo "$EPOCH_DETAILS" | grep "^Epoch Completed Slots:" | awk '{ print $4 }' | cut -d '/' -f 1)
 
-SLOT=$(($EPOCH*432000-1))
+SLOT=$(($EPOCH_CURRENT_SLOT-$EPOCH_COMPLETED_SLOTS-1))
 
 FIRST_LEADER_SLOT=
 
