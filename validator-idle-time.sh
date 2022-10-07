@@ -4,10 +4,18 @@
 # Usage: validator-idle-time <VALIDATOR_IDENTITY> [<SECONDS_PER_SLOT>]
 #   <SECONDS_PER_SLOT> is optional, if not provided, 0.55 is used
 
-if [ $# -lt 1 -o $# -gt 2 ]; then
-    echo "Usage: validator-idle-time <VALIDATOR_IDENTITY> [<SECONDS_PER_SLOT>]"
-    echo "    <SECONDS_PER_SLOT> is optional, if not provided, 0.55 is used"
+if [ $# -lt 1 ]; then
+    echo "Usage: validator-idle-time [-u rpc_or_cluster] <VALIDATOR_IDENTITY> [<SECONDS_PER_SLOT>]"
+    echo "    If <SECONDS_PER_SLOT> is not provided, 0.55 is used"
     exit -1
+fi
+
+CLUSTER_ARG=
+
+if [ "$1" = "-u" ]; then
+    CLUSTER="-u $2"
+    shift
+    shift
 fi
 
 VALIDATOR_IDENTITY=$1
@@ -35,7 +43,7 @@ function duration ()
     printf '%0.2f seconds' $S
 }
 
-EPOCH_DETAILS=$(solana epoch-info)
+EPOCH_DETAILS=$(solana $CLUSTER epoch-info)
 
 EPOCH_CURRENT_SLOT=$(echo "$EPOCH_DETAILS" | grep ^Slot: | awk '{ print $2 }')
 EPOCH_COMPLETED_SLOTS=$(echo "$EPOCH_DETAILS" | grep "^Epoch Completed Slots:" | awk '{ print $4 }' | cut -d '/' -f 1)
@@ -74,7 +82,7 @@ function show_non_leader_range ()
     fi
 }
 
-for NEXT_LEADER_SLOT in $(solana leader-schedule --no-address-labels | grep $VALIDATOR_IDENTITY | awk '{ print $1 }'); do
+for NEXT_LEADER_SLOT in $(solana $CLUSTER leader-schedule --no-address-labels | grep $VALIDATOR_IDENTITY | awk '{ print $1 }'); do
     # If there was a previous leader slot and the current leader slot is right after it,
     # then continue building the current leader slot range
     if [ -n "$PREVIOUS_LEADER_SLOT" -a \
